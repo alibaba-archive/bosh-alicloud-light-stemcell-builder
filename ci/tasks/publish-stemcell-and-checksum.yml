@@ -1,0 +1,24 @@
+---
+platform: linux
+
+image_resource:
+  type: docker-image
+  source: {repository: boshcpi/light-stemcell-builder}
+
+inputs:
+  - name: light-stemcell
+  - name: builder-src
+  - name: stemcells-index
+  - name: aliyun-cli
+
+outputs:
+  - name: stemcells-index-output
+
+run:
+  path: builder-src/ci/tasks/publish-stemcell-and-checksum.sh
+
+params:
+  AWS_ACCESS_KEY_ID:     ""
+  AWS_SECRET_ACCESS_KEY: ""
+  AWS_DEFAULT_REGION:    "us-east-1"
+  OUTPUT_BUCKET:         ""

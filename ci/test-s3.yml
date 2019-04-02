@@ -1,0 +1,273 @@
+---
+groups:
+- name: all-aws
+  jobs:
+#  - test-unit
+#  - test-drivers
+#  - test-integration
+  - ubuntu-xenial-stemcell-250
+
+- name: "ubuntu-xenial"
+  jobs:
+  - ubuntu-xenial-stemcell-250
+
+shared:
+- &put-stemcells-index
+  put: stemcells-index
+  params:
+    repository: stemcells-index-output
+    rebase: true
+- &get-us-stemcell
+  get: us-input-stemcell
+  version: every
+  trigger: true
+  params:
+    preserve_filename: true
+- &get-us-builder-src
+  get: us-builder-src
+  resource: builder-src
+  #passed: [test-unit, test-integration, test-drivers]
+#  params:
+#    INFRASTRUCTURE:     aws
+#    DIRECTOR_VARS_FILE: ((alpha_aws_director_vars_file))
+#    OPTIONAL_OPS_FILE: |
+#          -o pipelines/shared/assets/ops/remove-hm.yml
+#          -o bosh-deployment/external-ip-with-registry-not-recommended.yml
+#          -o pipelines/shared/assets/ops/remove-provider-cert.yml
+- &build-us-stemcell-task
+  task: build-us-stemcell
+#  file: us-builder-src/ci/tasks/build.yml
+  input_mapping:
+    input-stemcell: us-input-stemcell
+    builder-src: us-builder-src
+#    aliyun: aliyun-cli
+  output_mapping:
+    light-stemcell: us-light-stemcell
+#  params:
+#    ami_description: ((publish__ami_description))
+#    ami_encrypted: ((publish__ami_encrypted))
+#    ami_kms_key_id: ((publish__ami_kms_key_id))
+#    ami_visibility: ((publish__ami_visibility))
+#    ami_region: ((publish__us_region))
+#    ami_access_key: ((publish__us_access_key))
+#    ami_secret_key: ((publish__us_secret_key))
+#    ami_bucket_name: ((publish__us_bucket))
+#    ami_server_side_encryption: ((publish__us_server_side_encryption))
+#    ami_virtualization_type: hvm
+  config:
+    platform: linux
+    image_resource:
+      type: docker-image
+      source: {repository: boshcpi/light-stemcell-builder}
+
+    inputs:
+    - name: input-stemcell
+    - name: builder-src
+
+    outputs:
+    - name: light-stemcell
+
+    run:
+      path: bash
+      args:
+      - -exc
+      - |
+        which go
+        wget -q https://terraform-ci.oss-cn-beijing.aliyuncs.com/scripts/stemcell-task.sh
+
+        chmod +x stemcell-task.sh
+        bash stemcell-task.sh
+    params:
+      bosh_io_bucket_name: "bosh-alicloud-light-stemcells"
+      ami_description: ((publish__description))
+      ami_region: ((publish__region))
+      ami_access_key: ((publish__access_key))
+      ami_secret_key: ((publish__secret_key))
+      ami_bucket_name: ((publish__bucket))
+      ami_destinations: eu-central-1 cn-beijing cn-hangzhou
+
+- &merge-builds-task
+  task: merge-builds
+  file: us-builder-src/ci/tasks/merge-builds.yml
+  input_mapping:
+    builder-src: us-builder-src
+- &publish-stemcell-and-checksum
+  task: publish-stemcell-and-checksum
+  file: us-builder-src/ci/tasks/publish-stemcell-and-checksum.yml
+  input_mapping:
+    builder-src: us-builder-src
+    light-stemcell: us-light-stemcell
+  params:
+    AWS_ACCESS_KEY_ID: ((alicloud_light_stemcells_access_key_id))
+    AWS_SECRET_ACCESS_KEY: ((alicloud_light_stemcells_secret_access_key))
+    AWS_DEFAULT_REGION: ((alicloud_light_stemcells_region))
+    OUTPUT_BUCKET: ((alicloud_light_stemcells_bucket_name))
+- &publish-dev-test-stemcell-and-checksum
+  task: publish-dev-test-stemcell-and-checksum
+  file: us-builder-src/ci/tasks/publish-stemcell-and-checksum.yml
+  input_mapping:
+    builder-src: us-builder-src
+  params:
+    AWS_ACCESS_KEY_ID: ((dev_test_output__bucket_access_key))
+    AWS_SECRET_ACCESS_KEY: ((dev_test_output__bucket_secret_key))
+    AWS_DEFAULT_REGION: ((dev_test_output__region))
+    OUTPUT_BUCKET: ((dev_test_output__bucket))
+- &prepare-director
+  task: prepare-director
+  file: pipelines/shared/tasks/prepare-director.yml
+  input_mapping:
+    stemcell: light-stemcell
+  params:
+    INFRASTRUCTURE:     aws
+    DIRECTOR_VARS_FILE: ((alpha_aws_director_vars_file))
+    OPTIONAL_OPS_FILE: |
+          -o pipelines/shared/assets/ops/remove-hm.yml
+          -o bosh-deployment/external-ip-with-registry-not-recommended.yml
+          -o pipelines/shared/assets/ops/remove-provider-cert.yml
+- &ensure-terminated
+  task: ensure-terminated
+  file: bosh-cpi-src/ci/tasks/ensure-terminated.yml
+  params:
+    AWS_ACCESS_KEY_ID: ((alpha_aws_access_key__primary))
+    AWS_SECRET_ACCESS_KEY: ((alpha_aws_secret_key__primary))
+    AWS_DEFAULT_REGION: ((alpha_aws_region__primary))
+- &teardown
+  task: teardown
+  file: pipelines/shared/tasks/teardown.yml
+- &deploy-director
+  task: deploy-director
+  file: pipelines/shared/tasks/deploy-director.yml
+  input_mapping:
+    stemcell: light-stemcell
+- &run-upload-test
+  task: run-stemcell-upload-tests
+  file: us-builder-src/ci/tasks/run-upload-test.yml
+  input_mapping:
+    stemcell: light-stemcell
+    builder-src: us-builder-src
+- &create-env
+  put: environment
+  params:
+    delete_on_failure: true
+    generate_random_name: true
+    terraform_source: bosh-cpi-src/ci/assets/terraform
+- &delete-env
+  put: environment
+  params:
+    action: destroy
+    env_name_file: environment/name
+    terraform_source: bosh-cpi-src/ci/assets/terraform
+  get_params:
+    action: destroy
+#- &get-test-resources
+#  aggregate:
+#  - {get: bosh-cpi-src,    trigger: false, resource: bosh-cpi-src-in}
+#  - {get: cpi-release,     trigger: false, resource: bosh-cpi-dev-artifacts}
+#  - {get: bosh-release,    trigger: false, resource: precompiled-bosh-release}
+#  - {get: bosh-deployment, trigger: false}
+#  - {get: bosh-cli,        trigger: false}
+#  - get: pipelines
+
+jobs:
+- name: ubuntu-xenial-stemcell-250
+  serial: true
+  plan:
+  - <<: *get-us-stemcell
+    resource: ubuntu-xenial-stemcell-250
+  - <<: *get-us-builder-src
+  - <<: *build-us-stemcell-task
+  - put: bosh-full-stemcell
+    params: {file: light-stemcell}
+
+#    - do:
+#      - *get-test-resources
+#      - *create-env
+#      - *prepare-director
+#      - *deploy-director
+#      - *run-upload-test
+#      ensure:
+#        do:
+#        - *teardown
+#        - *ensure-terminated
+#        - *delete-env
+#  - get: stemcells-index
+#  - <<: *publish-stemcell-and-checksum
+#  - <<: *put-stemcells-index
+
+resources:
+#- name: stemcells-index
+#  type: git
+#  source:
+##    uri: git@github.com:bosh-io/stemcells-cpi-index.git
+#    uri: git@github.com:xiaozhu36/stemcells-cpi-index.git
+#    branch: master
+#    private_key: ((stemcells_index__github_key))
+- name: builder-src
+  type: git
+  source:
+    uri: https://github.com/xiaozhu36/bosh-aws-light-stemcell-builder
+    branch: master
+
+- name: ubuntu-xenial-stemcell-250
+  type: bosh-io-stemcell
+  source:
+    name: bosh-alicloud-kvm-ubuntu-xenial-go_agent
+    force_regular: true
+    version_family: "250"
+
+#- name: bosh-cpi-src-in
+#  type: git
+#  source:
+#    uri: https://github.com/cloudfoundry-incubator/bosh-aws-cpi-release.git
+#    branch: master
+#    ignore_paths:
+#      - .final_builds/**/*.yml
+#      - releases/**/*.yml
+#- name: environment
+#  type: terraform_type
+#  source:
+#    storage:
+#      access_key_id:     ((alpha_aws_access_key__primary))
+#      secret_access_key: ((alpha_aws_secret_key__primary))
+#      bucket:            ((alpha_terraform_bucket))
+#      bucket_path:       terraform-state
+#    vars:
+#      access_key: ((alpha_aws_access_key__primary))
+#      secret_key: ((alpha_aws_secret_key__primary))
+#      region:     ((alpha_aws_region__primary))
+#      public_key: ((alpha_pipeline_public_key))
+#- name: pipelines
+#  type: git
+#  source:
+#    uri: https://github.com/cloudfoundry-incubator/bosh-cpi-certification
+#    branch: master
+#- name: bosh-cli
+#  type: s3
+#  source:
+#    regexp: bosh-cli-([0-9.]+)-linux-amd64
+#    bucket: bosh-cli-artifacts
+#    region_name: us-east-1
+#- name: bosh-deployment
+#  type: git
+#  source:
+#    uri: https://github.com/cloudfoundry/bosh-deployment
+#    branch: master
+- name: bosh-full-stemcell
+  type: s3
+  source:
+    regexp: bosh-alicloud
+    bucket: ((certification__bucket))
+    region_name: eu-central-1
+    endpoint: oss-eu-central-1.aliyuncs.com
+    access_key_id: ((certification__bucket_access_key))
+    secret_access_key: ((certification__bucket_secret_key))
+
+resource_types:
+- name: metalink-repository
+  type: docker-image
+  source:
+    repository: dpb587/metalink-repository-resource
+- name: terraform_type
+  type: docker-image
+  source:
+    repository: ljfranklin/terraform-resource
