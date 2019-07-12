@@ -116,6 +116,19 @@ shared:
     ALICLOUD_DEFAULT_REGION: ((alicloud_light_stemcells_region))
     OUTPUT_BUCKET: ((alicloud_light_stemcells_bucket_name))
 
+- &ensure-light-stemcell-ready
+  task: ensure-light-stemcell-ready
+  file: builder-src/ci/tasks/ensure-stemcell-ready.yml
+  input_mapping:
+    input-stemcell: input-stemcell
+    builder-src: builder-src
+    aliyun-cli: aliyun-cli
+  params:
+    ami_access_key: ((publish__access_key))
+    ami_secret_key: ((publish__secret_key))
+    ami_region: ((publish__region))
+    ami_destinations: eu-central-1 cn-beijing cn-hangzhou
+
 jobs:
 - name: ubuntu-xenial-stemcell-250
   serial: true
@@ -153,6 +166,7 @@ jobs:
           env_name: bosh-alicloud-light-stemcell-builder
           generate_random_name: true
           action: destroy
+  - *ensure-light-stemcell-ready
   - get: stemcells-index
   - *publish-stemcell-and-checksum
   - *put-stemcells-index

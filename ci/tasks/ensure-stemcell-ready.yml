@@ -1,0 +1,18 @@
+---
+platform: linux
+image_resource:
+  type: docker-image
+  source: {repository: boshcpi/light-stemcell-builder}
+
+inputs:
+  - name: builder-src
+  - name: input-stemcell
+  - name: aliyun-cli
+
+run:
+  path: builder-src/ci/tasks/ensure-stemcell-ready.sh
+params:
+  ami_access_key:             ""
+  ami_secret_key:             ""
+  ami_region:                 ""
+  ami_destinations:           ""
