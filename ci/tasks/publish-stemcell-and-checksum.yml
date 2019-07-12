@@ -18,7 +18,7 @@ run:
   path: builder-src/ci/tasks/publish-stemcell-and-checksum.sh
 
 params:
-  AWS_ACCESS_KEY_ID:     ""
-  AWS_SECRET_ACCESS_KEY: ""
-  AWS_DEFAULT_REGION:    "us-east-1"
+  ALICLOUD_ACCESS_KEY_ID:     ""
+  ALICLOUD_SECRET_ACCESS_KEY: ""
+  ALICLOUD_DEFAULT_REGION:    "us-east-1"
   OUTPUT_BUCKET:         ""

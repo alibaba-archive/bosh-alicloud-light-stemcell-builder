@@ -2,13 +2,16 @@
 
 set -eu
 
-: ${AWS_ACCESS_KEY_ID:?}
-: ${AWS_SECRET_ACCESS_KEY:?}
-: ${AWS_DEFAULT_REGION:?}
+: ${ALICLOUD_ACCESS_KEY_ID:?}
+: ${ALICLOUD_SECRET_ACCESS_KEY:?}
+: ${ALICLOUD_DEFAULT_REGION:?}
 : ${OUTPUT_BUCKET:?}
 : ${BOSHIO_TOKEN:=""}
 
-tar -xzf aliyun-cli/aliyun-cli-linux-amd64.tar.gz -C /usr/bin
+my_dir="$( cd $(dirname $0) && pwd )"
+release_dir="$( cd ${my_dir} && cd ../.. && pwd )"
+
+source ${release_dir}/ci/tasks/utils.sh
 
 # inputs
 light_stemcell_dir="$PWD/light-stemcell"
@@ -43,7 +46,7 @@ popd > /dev/null
 
 echo "Uploading light stemcell ${light_stemcell_name} to ${OUTPUT_BUCKET}..."
 #aws s3 cp "${light_stemcell_path}" "s3://${OUTPUT_BUCKET}"
-aliyun oss cp "${light_stemcell_path}" "oss://${OUTPUT_BUCKET}/${light_stemcell_name}" --access-key-id ${AWS_ACCESS_KEY_ID} --access-key-secret ${AWS_SECRET_ACCESS_KEY} --region ${AWS_DEFAULT_REGION}
+aliyun oss cp "${light_stemcell_path}" "oss://${OUTPUT_BUCKET}/${light_stemcell_name}" --access-key-id ${ALICLOUD_ACCESS_KEY_ID} --access-key-secret ${ALICLOUD_SECRET_ACCESS_KEY} --region ${ALICLOUD_DEFAULT_REGION}
 
 echo "Stemcell metalink"
 cat "$meta4_path"

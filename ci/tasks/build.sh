@@ -5,7 +5,7 @@ set -e -o pipefail
 my_dir="$( cd $(dirname $0) && pwd )"
 release_dir="$( cd ${my_dir} && cd ../.. && pwd )"
 
-#source ${release_dir}/ci/tasks/utils.sh
+source ${release_dir}/ci/tasks/utils.sh
 
 : ${bosh_io_bucket_name:?}
 : ${ami_description:="NO DELETING. A bosh stemcell used to deploy bosh."}
@@ -13,12 +13,6 @@ release_dir="$( cd ${my_dir} && cd ../.. && pwd )"
 : ${ami_access_key:?}
 : ${ami_secret_key:?}
 : ${ami_bucket_name:?}
-
-#wget -q http://aliyun-cli.oss-cn-hangzhou.aliyuncs.com/aliyun-cli-linux-3.0.4-amd64.tgz
-ls -l .
-echo -e "***********ls aliyun-cli "
-ls -l ./aliyun-cli
-tar -xzf aliyun-cli/aliyun-cli-linux-amd64.tar.gz -C /usr/bin
 
 wget -q -O jq https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64
 chmod +x ./jq
@@ -111,7 +105,7 @@ do
             --access-key-secret ${ami_secret_key} \
             --region ${region_tmp} \
             --RegionId ${region_tmp} \
-            --ImageName $original_stemcell_name \
+            --ImageName ${original_stemcell_name} \
             --Status Waiting,Creating,Available,UnAvailable,CreateFailed
             ) | jq -r '.Images.Image[0].ImageId'
             )"
@@ -130,6 +124,8 @@ do
 #        )"
 done
 
+echo "-------------- manifest\n"
+echo $(cat ${stemcell_manifest})
 #echo -e "Deleting raw image ${stemcell_image_name}..."
 #aliyun oss rm oss://${ami_bucket_name}/ -r -f --region ${ami_region} --access-key-id ${ami_access_key}  --access-key-secret ${ami_secret_key}
 #echo -e "Deleting bucket ${ami_bucket_name}..."
