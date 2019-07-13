@@ -17,6 +17,7 @@ run:
   path: builder-src/ci/tasks/build.sh
 params:
   bosh_io_bucket_name:        "bosh-alicloud-light-stemcells"
+  bosh_io_bucket_region:      "eu-central-1"
   ami_description:            ""
   ami_region:                 ""
   ami_access_key:             ""

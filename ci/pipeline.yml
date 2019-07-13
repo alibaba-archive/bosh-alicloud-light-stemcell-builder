@@ -37,7 +37,6 @@ shared:
     light-stemcell: light-stemcell
     notification: notification
   params:
-    bosh_io_bucket_name: "bosh-alicloud-light-stemcells"
     ami_description: ((publish__description))
     ami_region: ((publish__region))
     ami_access_key: ((publish__access_key))
@@ -120,10 +119,8 @@ shared:
     builder-src: builder-src
     light-stemcell: light-stemcell
   params:
-    ALICLOUD_ACCESS_KEY_ID: ((alicloud_light_stemcells_access_key_id))
-    ALICLOUD_SECRET_ACCESS_KEY: ((alicloud_light_stemcells_secret_access_key))
-    ALICLOUD_DEFAULT_REGION: ((alicloud_light_stemcells_region))
-    OUTPUT_BUCKET: ((alicloud_light_stemcells_bucket_name))
+    ALICLOUD_ACCESS_KEY_ID: ((alicloud_publish_light_stemcells_access_key_id))
+    ALICLOUD_SECRET_ACCESS_KEY: ((alicloud_publish_light_stemcells_secret_access_key))
   on_success:
     put: notify
     params:
@@ -159,8 +156,8 @@ jobs:
     - *get-builder-src
     - *get-aliyun-cli
   - *create-light-stemcell
-#  - put: bosh-light-stemcell
-#    params: {file: light-stemcell/*.tgz}
+  - put: bosh-light-stemcell
+    params: {file: light-stemcell/*.tgz}
 # deploy bosh director and validate the light stemcell
   - do:
     - *get-test-resources
@@ -211,15 +208,15 @@ resources:
     force_regular: true
     version_family: "250.9"
 
-#- name: bosh-light-stemcell
-#  type: s3
-#  source:
-#    regexp: light-bosh-(.*).tgz
-#    bucket: ((certification__bucket))
-#    region_name: eu-central-1
-#    endpoint: oss-eu-central-1.aliyuncs.com
-#    access_key_id: ((certification__bucket_access_key))
-#    secret_access_key: ((certification__bucket_secret_key))
+- name: bosh-light-stemcell
+  type: s3
+  source:
+    regexp: light-bosh-(.*).tgz
+    bucket: ((certification__bucket))
+    region_name: eu-central-1
+    access_key_id: ((certification__bucket_access_key))
+    secret_access_key: ((certification__bucket_secret_key))
+    endpoint:          oss-((oss_alicloud_cpi_pipeline_bucket_region)).aliyuncs.com
 
 - name: aliyun-cli
   type: github-release
