@@ -10,9 +10,11 @@ inputs:
   - name: builder-src
   - name: stemcells-index
   - name: aliyun-cli
+  - name: notification
 
 outputs:
   - name: stemcells-index-output
+  - name: notification
 
 run:
   path: builder-src/ci/tasks/publish-stemcell-and-checksum.sh

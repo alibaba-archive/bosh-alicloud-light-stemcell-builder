@@ -50,9 +50,3 @@ do
         fi
     done
 done
-
-# Write the success message
-echo -e "Publish the latest light stemcell light-${original_stemcell_name} success." > ${PWD}/notification/success
-
-# Write the failed message
-echo -e "Publish the latest light stemcell light-${original_stemcell_name} failed. Please check!" > ${PWD}/notification/failed

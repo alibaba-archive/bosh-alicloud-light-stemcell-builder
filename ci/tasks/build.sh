@@ -32,7 +32,7 @@ stemcell_path=${PWD}/input-stemcell/*.tgz
 output_path=${PWD}/light-stemcell
 stemcell_metadata=${PWD}/notification/success
 # Write the success message
-echo -e "Please publish the following custom images for all of Alibaba Cloud Accounts:" > ${stemcell_metadata}
+echo -e "[bosh-alicloud-light-stemcell-builder In Progress]\nThe following custom images need to be shared with all of Alibaba Cloud Accounts:" > ${stemcell_metadata}
 echo -e "    Region               ImageId" >> ${stemcell_metadata}
 
 echo "Checking if light stemcell already exists..."
@@ -41,15 +41,16 @@ original_stemcell_name="$(basename ${stemcell_path})"
 light_stemcell_name="light-${original_stemcell_name}"
 
 # Write the failed message
-echo -e "Deploying the bosh director failed based on the latest ligth stemcell ${light_stemcell_name}. Please check!" > ${PWD}/notification/failed
+echo -e "[bosh-alicloud-light-stemcell-builder Failed]\nBuild the latest ligth stemcell ${light_stemcell_name} failed. Please check it!" > ${PWD}/notification/failed
 
-#bosh_io_light_stemcell_url="https://s3.amazonaws.com/$bosh_io_bucket_name/$light_stemcell_name"
 bosh_io_light_stemcell_url="https://$bosh_io_bucket_name.oss-$bosh_io_bucket_region.aliyuncs.com/$light_stemcell_name"
 set +e
 wget --spider "$bosh_io_light_stemcell_url"
 if [[ "$?" == "0" ]]; then
   echo "Alibaba Cloud light stemcell '$light_stemcell_name' already exists!"
   echo "You can download here: $bosh_io_light_stemcell_url"
+  # Write the failed message
+  echo -e "[bosh-alicloud-light-stemcell-builder Failed]\nThe latest ligth stemcell ${light_stemcell_name} already exists in $bosh_io_light_stemcell_url." > ${PWD}/notification/failed
   exit 1
 fi
 set -e
@@ -103,116 +104,116 @@ fi
 [[ "${manifest_contents}" =~ ${architecture_regex} ]]
 architecture="${BASH_REMATCH[1]}"
 
-################### clear last data #####################
-echo "  image_id:" >> ${stemcell_manifest}
-for region_tmp in ${ami_destinations}
+#################### clear last data #####################
+#echo "  image_id:" >> ${stemcell_manifest}
+#for region_tmp in ${ami_destinations}
+#do
+#    echo -e "Describing image in $region_tmp..."
+#    delete_image_id="$( echo $(aliyun ecs DescribeImages \
+#            --access-key-id ${ami_access_key}  \
+#            --access-key-secret ${ami_secret_key} \
+#            --region ${region_tmp} \
+#            --RegionId ${region_tmp} \
+#            --ImageName ${original_stemcell_name} \
+#            --Status Waiting,Creating,Available,UnAvailable,CreateFailed
+#            ) | jq -r '.Images.Image[0].ImageId'
+#            )"
+##    if [[ $delete_image_id == "null" || $delete_image_id == "" ]]; then
+##        continue
+##    fi
+#    echo "    $region_tmp: $delete_image_id" >> ${stemcell_manifest}
+#    echo "$region_tmp:  $delete_image_id" >> ${stemcell_metadata}
+##    echo -e "Deleting image $delete_image_id in $region_tmp..."
+##    echo "$(aliyun ecs DeleteImage \
+##        --access-key-id ${ami_access_key}  \
+##        --access-key-secret ${ami_secret_key} \
+##        --region ${region_tmp} \
+##        --RegionId ${region_tmp} \
+##        --ImageId $delete_image_id \
+##        --Force true
+##        )"
+#done
+#
+#echo "-------------- manifest\n"
+#echo $(cat ${stemcell_manifest})
+#
+##echo -e "Deleting raw image ${stemcell_image_name}..."
+##aliyun oss rm oss://${ami_bucket_name}/ -r -f --region ${ami_region} --access-key-id ${ami_access_key}  --access-key-secret ${ami_secret_key}
+##echo -e "Deleting bucket ${ami_bucket_name}..."
+##aliyun oss rm oss://${ami_bucket_name} -b -f --region ${ami_region} --access-key-id ${ami_access_key}  --access-key-secret ${ami_secret_key}
+########################################################
+
+echo -e "Uploading raw image ${stemcell_image_name} to ${ami_region} bucket ${ami_bucket_name}..."
+
+aliyun oss mb oss://${ami_bucket_name} --acl private --access-key-id ${ami_access_key} --access-key-secret ${ami_secret_key} --region ${ami_region}
+aliyun oss cp -f ${stemcell_image} oss://${ami_bucket_name}/${stemcell_image_name} --access-key-id ${ami_access_key} --access-key-secret ${ami_secret_key} --region ${ami_region}
+
+ImportImageResponse="$(aliyun ecs ImportImage \
+    --access-key-id ${ami_access_key} \
+    --access-key-secret ${ami_secret_key} \
+    --region ${ami_region} \
+    --Platform $os_distro \
+    --DiskDeviceMapping.1.OSSBucket ${ami_bucket_name} \
+    --DiskDeviceMapping.1.OSSObject ${stemcell_image_name} \
+    --DiskDeviceMapping.1.DiskImageSize $disk_size_gb \
+    --DiskDeviceMapping.1.Format $disk_format \
+    --Architecture $architecture \
+    --ImageName $original_stemcell_name \
+    --Description ${ami_description}
+    )"
+
+echo -e "ImportImage: $ImportImageResponse"
+base_image_id="$( echo $ImportImageResponse | jq -r '.ImageId' )"
+
+echo -e "Waiting for image $base_image_id is Available..."
+timeout=600
+while [ $timeout -gt 0 ]
 do
-    echo -e "Describing image in $region_tmp..."
-    delete_image_id="$( echo $(aliyun ecs DescribeImages \
+    DescribeImagesResponse="$(aliyun ecs DescribeImages \
             --access-key-id ${ami_access_key}  \
             --access-key-secret ${ami_secret_key} \
-            --region ${region_tmp} \
-            --RegionId ${region_tmp} \
-            --ImageName ${original_stemcell_name} \
+            --region ${ami_region} \
+            --RegionId ${ami_region} \
+            --ImageId $base_image_id \
             --Status Waiting,Creating,Available,UnAvailable,CreateFailed
-            ) | jq -r '.Images.Image[0].ImageId'
             )"
-#    if [[ $delete_image_id == "null" || $delete_image_id == "" ]]; then
-#        continue
-#    fi
-    echo "    $region_tmp: $delete_image_id" >> ${stemcell_manifest}
-    echo "$region_tmp:  $delete_image_id" >> ${stemcell_metadata}
-#    echo -e "Deleting image $delete_image_id in $region_tmp..."
-#    echo "$(aliyun ecs DeleteImage \
-#        --access-key-id ${ami_access_key}  \
-#        --access-key-secret ${ami_secret_key} \
-#        --region ${region_tmp} \
-#        --RegionId ${region_tmp} \
-#        --ImageId $delete_image_id \
-#        --Force true
-#        )"
+    if [[ `echo $DescribeImagesResponse | jq -r '.Images.Image[0].Status'` != "Available" ]]; then
+        sleep 5
+        timeout=$((${timeout}-5))
+    else
+        break
+    fi
 done
 
-echo "-------------- manifest\n"
-echo $(cat ${stemcell_manifest})
+aliyun oss rm oss://${ami_bucket_name}/ -r -f --region ${ami_region} --access-key-id ${ami_access_key}  --access-key-secret ${ami_secret_key}
+aliyun oss rm oss://${ami_bucket_name} -b -f --region ${ami_region} --access-key-id ${ami_access_key}  --access-key-secret ${ami_secret_key}
 
-#echo -e "Deleting raw image ${stemcell_image_name}..."
-#aliyun oss rm oss://${ami_bucket_name}/ -r -f --region ${ami_region} --access-key-id ${ami_access_key}  --access-key-secret ${ami_secret_key}
-#echo -e "Deleting bucket ${ami_bucket_name}..."
-#aliyun oss rm oss://${ami_bucket_name} -b -f --region ${ami_region} --access-key-id ${ami_access_key}  --access-key-secret ${ami_secret_key}
-#######################################################
+echo -e "An image $base_image_id has been created in ${ami_region} successfully and then start to copy it to otheres regions:\n${ami_destinations}."
 
-#echo -e "Uploading raw image ${stemcell_image_name} to ${ami_bucket_name}..."
-#
-#aliyun oss mb oss://${ami_bucket_name} --acl private --access-key-id ${ami_access_key} --access-key-secret ${ami_secret_key} --region ${ami_region}
-#aliyun oss cp ${stemcell_image} oss://${ami_bucket_name}/${stemcell_image_name} --access-key-id ${ami_access_key} --access-key-secret ${ami_secret_key} --region ${ami_region}
-#
-#echo -e "Starting region: ${ami_region}"
-#echo -e "Copy regions: ${ami_destinations}"
-#
-#ImportImageResponse="$(aliyun ecs ImportImage \
-#    --access-key-id ${ami_access_key} \
-#    --access-key-secret ${ami_secret_key} \
-#    --region ${ami_region} \
-#    --Platform $os_distro \
-#    --DiskDeviceMapping.1.OSSBucket ${ami_bucket_name} \
-#    --DiskDeviceMapping.1.OSSObject ${stemcell_image_name} \
-#    --DiskDeviceMapping.1.DiskImageSize $disk_size_gb \
-#    --DiskDeviceMapping.1.Format $disk_format \
-#    --Architecture $architecture \
-#    --ImageName $original_stemcell_name \
-#    --Description ${ami_description}
-#    )"
-#
-#echo -e "ImportImage: $ImportImageResponse"
-#base_image_id="$( echo $ImportImageResponse | jq -r '.ImageId' )"
-#
-#echo -e "Waiting for image $base_image_id is Available..."
-#timeout=600
-#while [ $timeout -gt 0 ]
-#do
-#    DescribeImagesResponse="$(aliyun ecs DescribeImages \
-#            --access-key-id ${ami_access_key}  \
-#            --access-key-secret ${ami_secret_key} \
-#            --region ${ami_region} \
-#            --RegionId ${ami_region} \
-#            --ImageId $base_image_id \
-#            --Status Waiting,Creating,Available,UnAvailable,CreateFailed
-#            )"
-#    if [[ `echo $DescribeImagesResponse | jq -r '.Images.Image[0].Status'` != "Available" ]]; then
-#        sleep 5
-#        timeout=$((${timeout}-5))
-#    else
-#        break
-#    fi
-#done
-#
-#echo -e "An image $base_image_id has been created in ${ami_region} successfully!"
-#
-#echo "  image_id:" >> ${stemcell_manifest}
-#
-#for regionId in ${ami_destinations}
-#do
-#    if [[ $regionId == ${ami_region} ]]; then
-#        image_id=$base_image_id
-#    else
-#        CopyImageResponse="$(aliyun ecs CopyImage \
-#            --access-key-id ${ami_access_key}  \
-#            --access-key-secret ${ami_secret_key} \
-#            --region ${ami_region} \
-#            --RegionId ${ami_region} \
-#            --ImageId $base_image_id \
-#            --DestinationRegionId $regionId \
-#            --DestinationImageName $original_stemcell_name \
-#            --DestinationDescription ${ami_description} \
-#            --Tag.1.Key CopyFrom \
-#            --Tag.1.Value $base_image_id
-#            )"
-#        echo -e "CopyImage to $regionId: $CopyImageResponse"
-#        image_id="$(echo $CopyImageResponse | jq -r '.ImageId' )"
-#    fi
-#    echo "    $regionId: $image_id" >> ${stemcell_manifest}
-#done
+echo "  image_id:" >> ${stemcell_manifest}
+
+for regionId in ${ami_destinations}
+do
+    if [[ $regionId == ${ami_region} ]]; then
+        image_id=$base_image_id
+    else
+        CopyImageResponse="$(aliyun ecs CopyImage \
+            --access-key-id ${ami_access_key}  \
+            --access-key-secret ${ami_secret_key} \
+            --region ${ami_region} \
+            --RegionId ${ami_region} \
+            --ImageId $base_image_id \
+            --DestinationRegionId $regionId \
+            --DestinationImageName $original_stemcell_name \
+            --DestinationDescription ${ami_description} \
+            --Tag.1.Key CopyFrom \
+            --Tag.1.Value $base_image_id
+            )"
+        echo -e "CopyImage to $regionId: $CopyImageResponse"
+        image_id="$(echo $CopyImageResponse | jq -r '.ImageId' )"
+    fi
+    echo "    $regionId: $image_id" >> ${stemcell_manifest}
+done
 
 pushd ${extracted_stemcell_dir}
   > image
@@ -220,8 +221,5 @@ pushd ${extracted_stemcell_dir}
   tar -czf ${output_path}/${light_stemcell_name} *
 popd
 tar -tf ${output_path}/${light_stemcell_name}
-echo -e "***** show light stemcell"
+echo -e "Finished!"
 ls -l ${output_path}
-
-#aliyun oss rm oss://${ami_bucket_name}/ -r -f --region ${ami_region} --access-key-id ${ami_access_key}  --access-key-secret ${ami_secret_key}
-#aliyun oss rm oss://${ami_bucket_name} -b -f --region ${ami_region} --access-key-id ${ami_access_key}  --access-key-secret ${ami_secret_key}

@@ -10,6 +10,14 @@ shared:
   params:
     repository: stemcells-index-output
     rebase: true
+  on_success:
+    put: notify
+    params:
+      text_file: notification/success
+  on_failure:
+    put: notify
+    params:
+      text_file: notification/failed
 
 - &get-stemcell
   get: input-stemcell
@@ -43,6 +51,10 @@ shared:
     ami_secret_key: ((publish__secret_key))
     ami_bucket_name: ((publish__bucket))
     ami_destinations: eu-central-1 cn-beijing cn-hangzhou
+  on_failure:
+    put: notify
+    params:
+      text_file: notification/failed
 
 - &get-test-resources
   aggregate:
@@ -104,13 +116,17 @@ shared:
     access_key: {{alicloud_access_key__primary}}
     secret_key: {{alicloud_secret_key__primary}}
     region:     {{alicloud_region__primary}}
-    access_key_id:     {{terraform_alicloud_access_key}}
-    secret_access_key: {{terraform_alicloud_secret_key}}
-    bucket:            {{terraform_bucket}}
-    region_name:       {{terraform_bucket_region}}
-    bucket_path: "state"
+    remote_state_access_key: {{terraform_backend_access_key}}
+    remote_state_secret_key: {{terraform_backend_secret_key}}
+    remote_state_bucket:     {{terraform_backend_bucket}}
+    remote_state_region:     {{terraform_backend_region}}
+    remote_state_file_path:  "bosh-alicloud-light-stemcell-state"
     public_key: ((PUBLIC_KEY))
     terraform_source: bosh-cpi-src/ci/assets/terraform
+  on_failure:
+    put: notify
+    params:
+      text_file: notification/failed
 
 - &publish-stemcell-and-checksum
   task: publish-stemcell-and-checksum
@@ -121,10 +137,6 @@ shared:
   params:
     ALICLOUD_ACCESS_KEY_ID: ((alicloud_publish_light_stemcells_access_key_id))
     ALICLOUD_SECRET_ACCESS_KEY: ((alicloud_publish_light_stemcells_secret_access_key))
-  on_success:
-    put: notify
-    params:
-      text_file: notification/success
   on_failure:
     put: notify
     params:
@@ -143,6 +155,10 @@ shared:
     ami_secret_key: ((publish__secret_key))
     ami_region: ((publish__region))
     ami_destinations: eu-central-1 cn-beijing cn-hangzhou
+  on_failure:
+    put: notify
+    params:
+      text_file: notification/failed
 
 jobs:
 - name: ubuntu-xenial-stemcell-250
@@ -156,17 +172,14 @@ jobs:
     - *get-builder-src
     - *get-aliyun-cli
   - *create-light-stemcell
-  - put: bosh-light-stemcell
-    params: {file: light-stemcell/*.tgz}
 # deploy bosh director and validate the light stemcell
   - do:
     - *get-test-resources
     - <<: *put-environment
       params:
         <<: *put-environment-params
-        env_name: bosh-alicloud-light-stemcell-builder
+        env_name: ubuntu-xenial-stemcell-250
         delete_on_failure: true
-        generate_random_name: true
     - *prepare-director
     - *deploy-director
 #    run bosh upload-stemcells xxx
@@ -178,7 +191,7 @@ jobs:
       - <<: *put-environment
         params:
           <<: *put-environment-params
-          env_name: bosh-alicloud-light-stemcell-builder
+          env_name: ubuntu-xenial-stemcell-250
           generate_random_name: true
           action: destroy
   - *ensure-light-stemcell-ready
@@ -191,7 +204,7 @@ resources:
   type: git
   source:
 #    uri: git@github.com:bosh-io/stemcells-cpi-index.git
-    uri: git@github.com:xiaozhu36/stemcells-cpi-index.git
+    uri: git@github.com:xiaozhu36/stemcells-alicloud-index.git
     branch: master
     private_key: ((stemcells_index__github_key))
 
@@ -206,17 +219,7 @@ resources:
   source:
     name: bosh-alicloud-kvm-ubuntu-xenial-go_agent
     force_regular: true
-    version_family: "250.9"
-
-- name: bosh-light-stemcell
-  type: s3
-  source:
-    regexp: light-bosh-(.*).tgz
-    bucket: ((certification__bucket))
-    region_name: eu-central-1
-    access_key_id: ((certification__bucket_access_key))
-    secret_access_key: ((certification__bucket_secret_key))
-    endpoint:          oss-((oss_alicloud_cpi_pipeline_bucket_region)).aliyuncs.com
+    version_family: "250"
 
 - name: aliyun-cli
   type: github-release

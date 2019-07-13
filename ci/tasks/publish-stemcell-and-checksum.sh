@@ -44,3 +44,9 @@ aliyun oss cp "${light_stemcell_path}" "oss://${bosh_io_bucket_name}/${light_ste
 
 echo "Stemcell metalink"
 cat "$meta4_path"
+
+# Write the success message
+echo -e "[bosh-alicloud-light-stemcell-builder Success]\nPublish the latest light stemcell light-${light_stemcell_name} success." > ${PWD}/notification/success
+
+# Write the failed message
+echo -e "[bosh-alicloud-light-stemcell-builder Failed]\nPublish the latest light stemcell light-${light_stemcell_name} failed. Please check it!" > ${PWD}/notification/failed
