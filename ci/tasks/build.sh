@@ -29,12 +29,18 @@ saved_ami_destinations="$(echo $(aliyun ecs DescribeRegions \
 
 stemcell_path=${PWD}/input-stemcell/*.tgz
 output_path=${PWD}/light-stemcell
-#mkdir ${output_path}
+stemcell_metadata=${PWD}/notification/success
+# Write the success message
+echo -e "Please publish the following custom images for all of Alibaba Cloud Accounts:" > ${stemcell_metadata}
+echo -e "    Region               ImageId" >> ${stemcell_metadata}
 
 echo "Checking if light stemcell already exists..."
 
 original_stemcell_name="$(basename ${stemcell_path})"
 light_stemcell_name="light-${original_stemcell_name}"
+
+# Write the failed message
+echo -e "Deploying the bosh director failed based on the latest ligth stemcell ${light_stemcell_name}. Please check!" > ${PWD}/notification/failed
 
 bosh_io_light_stemcell_url="https://s3.amazonaws.com/$bosh_io_bucket_name/$light_stemcell_name"
 set +e
@@ -113,6 +119,7 @@ do
 #        continue
 #    fi
     echo "    $region_tmp: $delete_image_id" >> ${stemcell_manifest}
+    echo "$region_tmp:  $delete_image_id" >> ${stemcell_metadata}
 #    echo -e "Deleting image $delete_image_id in $region_tmp..."
 #    echo "$(aliyun ecs DeleteImage \
 #        --access-key-id ${ami_access_key}  \
@@ -126,6 +133,8 @@ done
 
 echo "-------------- manifest\n"
 echo $(cat ${stemcell_manifest})
+echo "-------------- metadata\n"
+echo $(cat ${stemcell_metadata})
 #echo -e "Deleting raw image ${stemcell_image_name}..."
 #aliyun oss rm oss://${ami_bucket_name}/ -r -f --region ${ami_region} --access-key-id ${ami_access_key}  --access-key-secret ${ami_secret_key}
 #echo -e "Deleting bucket ${ami_bucket_name}..."

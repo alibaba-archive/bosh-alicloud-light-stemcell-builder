@@ -10,7 +10,8 @@ inputs:
   - name: aliyun-cli
 
 outputs:
-- name: light-stemcell
+  - name: light-stemcell
+  - name: notification
 
 run:
   path: builder-src/ci/tasks/build.sh

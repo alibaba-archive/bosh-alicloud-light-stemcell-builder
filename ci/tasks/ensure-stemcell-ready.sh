@@ -1,32 +1,32 @@
 #!/usr/bin/env bash
-echo -e "*********881..."
+
 set -e -o pipefail
 
 my_dir="$( cd $(dirname $0) && pwd )"
 release_dir="$( cd ${my_dir} && cd ../.. && pwd )"
 
 source ${release_dir}/ci/tasks/utils.sh
-echo -e "*********882..."
+
 : ${ami_access_key:?}
 : ${ami_secret_key:?}
 : ${ami_region:?}
-echo -e "*********883..."
+
 wget -q -O jq https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64
 chmod +x ./jq
 cp jq /usr/bin
-echo -e "*********884..."
+
 saved_ami_destinations="$(echo $(aliyun ecs DescribeRegions \
     --access-key-id ${ami_access_key} \
     --access-key-secret ${ami_secret_key} \
     --region ${ami_region}
     ) | jq -r '.Regions.Region[].RegionId'
     )"
-echo -e "*********884..."
+
 : ${ami_destinations:=$saved_ami_destinations}
-echo -e "*********884..."
+
 stemcell_path=${PWD}/input-stemcell/*.tgz
 original_stemcell_name="$(basename ${stemcell_path})"
-echo -e "*********884..."
+
 echo -e "Checking image ${original_stemcell_name} is ready..."
 success=true
 while [[ ${success} = false ]]
@@ -50,3 +50,9 @@ do
         fi
     done
 done
+
+# Write the success message
+echo -e "Publish the latest light stemcell light-${original_stemcell_name} success." > ${PWD}/notification/success
+
+# Write the failed message
+echo -e "Publish the latest light stemcell light-${original_stemcell_name} failed. Please check!" > ${PWD}/notification/failed

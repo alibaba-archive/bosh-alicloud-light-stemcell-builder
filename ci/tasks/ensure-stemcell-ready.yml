@@ -8,6 +8,7 @@ inputs:
   - name: builder-src
   - name: input-stemcell
   - name: aliyun-cli
+  - name: notification
 
 run:
   path: builder-src/ci/tasks/ensure-stemcell-ready.sh

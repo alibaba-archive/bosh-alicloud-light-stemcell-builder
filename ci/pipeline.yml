@@ -35,6 +35,7 @@ shared:
     aliyun-cli: aliyun-cli
   output_mapping:
     light-stemcell: light-stemcell
+    notification: notification
   params:
     bosh_io_bucket_name: "bosh-alicloud-light-stemcells"
     ami_description: ((publish__description))
@@ -72,6 +73,14 @@ shared:
   file: pipelines/shared/tasks/deploy-director.yml
   input_mapping:
     stemcell: light-stemcell
+  on_success:
+    put: notify
+    params:
+      text_file: notification/success
+  on_failure:
+    put: notify
+    params:
+      text_file: notification/failed
 
 - &ensure-terminated
   task: ensure-terminated
@@ -115,12 +124,21 @@ shared:
     ALICLOUD_SECRET_ACCESS_KEY: ((alicloud_light_stemcells_secret_access_key))
     ALICLOUD_DEFAULT_REGION: ((alicloud_light_stemcells_region))
     OUTPUT_BUCKET: ((alicloud_light_stemcells_bucket_name))
+  on_success:
+    put: notify
+    params:
+      text_file: notification/success
+  on_failure:
+    put: notify
+    params:
+      text_file: notification/failed
 
 - &ensure-light-stemcell-ready
   task: ensure-light-stemcell-ready
   file: builder-src/ci/tasks/ensure-stemcell-ready.yml
   input_mapping:
     input-stemcell: input-stemcell
+    notification: notification
     builder-src: builder-src
     aliyun-cli: aliyun-cli
   params:
@@ -255,6 +273,10 @@ resources:
   type: git
   source:
     uri: https://github.com/archieves/jq-blob
+- name: notify
+  type: slack-notification
+  source:
+    url: ((slack-webhook))
 
 resource_types:
 - name: metalink-repository
@@ -265,3 +287,7 @@ resource_types:
   type: docker-image
   source:
     repository: ljfranklin/terraform-resource
+- name: slack-notification
+  type: docker-image
+  source:
+    repository: cfcommunity/slack-notification-resource
