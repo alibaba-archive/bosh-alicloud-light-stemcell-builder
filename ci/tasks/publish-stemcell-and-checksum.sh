@@ -44,6 +44,7 @@ popd > /dev/null
 
 echo "Uploading light stemcell ${light_stemcell_name} to ${bosh_io_bucket_name}..."
 aliyun oss cp "${light_stemcell_path}" "oss://${bosh_io_bucket_name}/${light_stemcell_name}" --access-key-id ${ALICLOUD_ACCESS_KEY_ID} --access-key-secret ${ALICLOUD_SECRET_ACCESS_KEY} --region ${bosh_io_bucket_region}
+aliyun oss set-acl "oss://${bosh_io_bucket_name}/${light_stemcell_name}" public-read --access-key-id ${ALICLOUD_ACCESS_KEY_ID} --access-key-secret ${ALICLOUD_SECRET_ACCESS_KEY} --region ${bosh_io_bucket_region}
 
 echo "Stemcell metalink"
 cat "$meta4_path"
