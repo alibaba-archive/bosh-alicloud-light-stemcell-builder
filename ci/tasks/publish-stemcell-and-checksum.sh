@@ -12,6 +12,9 @@ release_dir="$( cd ${my_dir} && cd ../.. && pwd )"
 
 source ${release_dir}/ci/tasks/utils.sh
 
+success_message=${PWD}/notification/success
+failed_message=${PWD}/notification/failed
+
 # inputs
 light_stemcell_dir="$PWD/light-stemcell"
 
@@ -46,7 +49,7 @@ echo "Stemcell metalink"
 cat "$meta4_path"
 
 # Write the success message
-echo -e "[bosh-alicloud-light-stemcell-builder Success]\nPublish the latest light stemcell light-${light_stemcell_name} success." > ${PWD}/notification/success
+echo -e "[bosh-alicloud-light-stemcell-builder Success]\nPublish the latest light stemcell light-${light_stemcell_name} success." > ${success_message}
 
 # Write the failed message
-echo -e "[bosh-alicloud-light-stemcell-builder Failed]\nPublish the latest light stemcell light-${light_stemcell_name} failed. Please check it!" > ${PWD}/notification/failed
+echo -e "[bosh-alicloud-light-stemcell-builder Failed]\nPublish the latest light stemcell light-${light_stemcell_name} failed. Please check it!" > ${failed_message}

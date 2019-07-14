@@ -30,10 +30,8 @@ saved_ami_destinations="$(echo $(aliyun ecs DescribeRegions \
 
 stemcell_path=${PWD}/input-stemcell/*.tgz
 output_path=${PWD}/light-stemcell
-stemcell_metadata=${PWD}/notification/success
-# Write the success message
-echo -e "[bosh-alicloud-light-stemcell-builder In Progress]\nThe following custom images need to be shared with all of Alibaba Cloud Accounts:" > ${stemcell_metadata}
-echo -e "    Region               ImageId" >> ${stemcell_metadata}
+success_message=${PWD}/notification/success
+failed_message=${PWD}/notification/failed
 
 echo "Checking if light stemcell already exists..."
 
@@ -41,7 +39,7 @@ original_stemcell_name="$(basename ${stemcell_path})"
 light_stemcell_name="light-${original_stemcell_name}"
 
 # Write the failed message
-echo -e "[bosh-alicloud-light-stemcell-builder Failed]\nBuild the latest ligth stemcell ${light_stemcell_name} failed. Please check it!" > ${PWD}/notification/failed
+echo -e "[bosh-alicloud-light-stemcell-builder Failed]\nBuild the latest ligth stemcell ${light_stemcell_name} failed. Please check it!" > ${failed_message}
 
 bosh_io_light_stemcell_url="https://$bosh_io_bucket_name.oss-$bosh_io_bucket_region.aliyuncs.com/$light_stemcell_name"
 set +e
@@ -50,7 +48,7 @@ if [[ "$?" == "0" ]]; then
   echo "Alibaba Cloud light stemcell '$light_stemcell_name' already exists!"
   echo "You can download here: $bosh_io_light_stemcell_url"
   # Write the failed message
-  echo -e "[bosh-alicloud-light-stemcell-builder Failed]\nThe latest ligth stemcell ${light_stemcell_name} already exists in $bosh_io_light_stemcell_url." > ${PWD}/notification/failed
+  echo -e "[bosh-alicloud-light-stemcell-builder Failed]\nThe latest ligth stemcell ${light_stemcell_name} already exists in $bosh_io_light_stemcell_url." > ${failed_message}
   exit 1
 fi
 set -e
@@ -122,7 +120,7 @@ architecture="${BASH_REMATCH[1]}"
 ##        continue
 ##    fi
 #    echo "    $region_tmp: $delete_image_id" >> ${stemcell_manifest}
-#    echo "$region_tmp:  $delete_image_id" >> ${stemcell_metadata}
+#    echo "$region_tmp:  $delete_image_id" >> ${success_message}
 ##    echo -e "Deleting image $delete_image_id in $region_tmp..."
 ##    echo "$(aliyun ecs DeleteImage \
 ##        --access-key-id ${ami_access_key}  \
@@ -144,10 +142,8 @@ architecture="${BASH_REMATCH[1]}"
 ########################################################
 
 echo -e "Uploading raw image ${stemcell_image_name} to ${ami_region} bucket ${ami_bucket_name}..."
-
-aliyun oss mb oss://${ami_bucket_name} --acl private --access-key-id ${ami_access_key} --access-key-secret ${ami_secret_key} --region ${ami_region}
-aliyun oss cp -f ${stemcell_image} oss://${ami_bucket_name}/${stemcell_image_name} --access-key-id ${ami_access_key} --access-key-secret ${ami_secret_key} --region ${ami_region}
-
+#aliyun oss cp ${stemcell_image} oss://${ami_bucket_name}/${stemcell_image_name} -f --access-key-id ${ami_access_key} --access-key-secret ${ami_secret_key} --region ${ami_region}
+echo -e "description: $ami_description"
 ImportImageResponse="$(aliyun ecs ImportImage \
     --access-key-id ${ami_access_key} \
     --access-key-secret ${ami_secret_key} \
@@ -159,7 +155,7 @@ ImportImageResponse="$(aliyun ecs ImportImage \
     --DiskDeviceMapping.1.Format $disk_format \
     --Architecture $architecture \
     --ImageName $original_stemcell_name \
-    --Description ${ami_description}
+    --Description \"$ami_description\"
     )"
 
 echo -e "ImportImage: $ImportImageResponse"
@@ -185,13 +181,17 @@ do
     fi
 done
 
-aliyun oss rm oss://${ami_bucket_name}/ -r -f --region ${ami_region} --access-key-id ${ami_access_key}  --access-key-secret ${ami_secret_key}
-aliyun oss rm oss://${ami_bucket_name} -b -f --region ${ami_region} --access-key-id ${ami_access_key}  --access-key-secret ${ami_secret_key}
+# Remove the raw image
+aliyun oss rm oss://${ami_bucket_name}/root.img --region ${ami_region} --access-key-id ${ami_access_key}  --access-key-secret ${ami_secret_key}
 
 echo -e "An image $base_image_id has been created in ${ami_region} successfully and then start to copy it to otheres regions:\n${ami_destinations}."
 
-echo "  image_id:" >> ${stemcell_manifest}
+# Write the success message
+echo -e "[bosh-alicloud-light-stemcell-builder In Progress]\nThe following custom images need to be shared with all of Alibaba Cloud Accounts:" > ${success_message}
+echo -e "    Region               ImageId" >> ${success_message}
 
+echo "  image_id:" >> ${stemcell_manifest}
+echo -e "description: $ami_description"
 for regionId in ${ami_destinations}
 do
     if [[ $regionId == ${ami_region} ]]; then
@@ -205,7 +205,7 @@ do
             --ImageId $base_image_id \
             --DestinationRegionId $regionId \
             --DestinationImageName $original_stemcell_name \
-            --DestinationDescription ${ami_description} \
+            --DestinationDescription \"$ami_description\" \
             --Tag.1.Key CopyFrom \
             --Tag.1.Value $base_image_id
             )"
@@ -213,6 +213,7 @@ do
         image_id="$(echo $CopyImageResponse | jq -r '.ImageId' )"
     fi
     echo "    $regionId: $image_id" >> ${stemcell_manifest}
+    echo "$regionId:  $image_id" >> ${success_message}
 done
 
 pushd ${extracted_stemcell_dir}

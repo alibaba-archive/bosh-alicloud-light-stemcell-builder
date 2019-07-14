@@ -45,7 +45,7 @@ shared:
     light-stemcell: light-stemcell
     notification: notification
   params:
-    ami_description: ((publish__description))
+    ami_description: {{publish__description}}
     ami_region: ((publish__region))
     ami_access_key: ((publish__access_key))
     ami_secret_key: ((publish__secret_key))
@@ -64,14 +64,14 @@ shared:
   - {get: bosh-deployment, trigger: false}
   - {get: bosh-cli,        trigger: false}
   - {get: jq-blob,         trigger: false}
-  - get: pipelines
+  - {get: pipelines,       trigger: false}
 
 - &prepare-director
   task: prepare-director
   file: pipelines/shared/tasks/prepare-director.yml
   params: &prepare-director-params
     INFRASTRUCTURE:             alicloud
-    DIRECTOR_VARS_FILE:         {{alicloud_director_vars_file}}
+    DIRECTOR_VARS_FILE:         {{alicloud_bosh_director_vars_file}}
     OPTIONAL_OPS_FILE:  |
       -o pipelines/shared/assets/ops/remove-hm.yml
       -o bosh-deployment/external-ip-with-registry-not-recommended.yml
@@ -219,7 +219,7 @@ resources:
   source:
     name: bosh-alicloud-kvm-ubuntu-xenial-go_agent
     force_regular: true
-    version_family: "250"
+    version_family: "250.63"
 
 - name: aliyun-cli
   type: github-release
@@ -247,11 +247,11 @@ resources:
   type: s3
   source:
     regexp: bosh-alicloud-cpi-(\d+\.\d+\.\d+)\.tgz
-    bucket: {{oss_alicloud_cpi_pipeline_bucket}}
-    region_name: {{oss_alicloud_cpi_pipeline_bucket_region}}
+    bucket: {{alicloud_cpi_pipeline_bucket}}
+    region_name: {{alicloud_cpi_pipeline_bucket_region}}
     access_key_id: {{alicloud_access_key__primary}}
     secret_access_key: {{alicloud_secret_key__primary}}
-    endpoint:          oss-((oss_alicloud_cpi_pipeline_bucket_region)).aliyuncs.com
+    endpoint:          oss-((alicloud_cpi_pipeline_bucket_region)).aliyuncs.com
 - name: bosh-deployment
   type: git
   source:

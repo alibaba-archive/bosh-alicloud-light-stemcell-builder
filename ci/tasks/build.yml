@@ -22,5 +22,5 @@ params:
   ami_region:                 ""
   ami_access_key:             ""
   ami_secret_key:             ""
-  ami_bucket_name:            ""
+  ami_bucket_name:            "bosh-alicloud-light-stemcells"
   ami_destinations:           ""
