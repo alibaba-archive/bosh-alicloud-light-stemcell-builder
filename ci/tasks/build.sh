@@ -142,8 +142,8 @@ architecture="${BASH_REMATCH[1]}"
 ########################################################
 
 echo -e "Uploading raw image ${stemcell_image_name} to ${ami_region} bucket ${ami_bucket_name}..."
-#aliyun oss cp ${stemcell_image} oss://${ami_bucket_name}/${stemcell_image_name} -f --access-key-id ${ami_access_key} --access-key-secret ${ami_secret_key} --region ${ami_region}
-echo -e "description: $ami_description"
+aliyun oss cp ${stemcell_image} oss://${ami_bucket_name}/${stemcell_image_name} -f --access-key-id ${ami_access_key} --access-key-secret ${ami_secret_key} --region ${ami_region}
+
 ImportImageResponse="$(aliyun ecs ImportImage \
     --access-key-id ${ami_access_key} \
     --access-key-secret ${ami_secret_key} \
@@ -155,7 +155,7 @@ ImportImageResponse="$(aliyun ecs ImportImage \
     --DiskDeviceMapping.1.Format $disk_format \
     --Architecture $architecture \
     --ImageName $original_stemcell_name \
-    --Description \"$ami_description\"
+    --Description "${ami_description}"
     )"
 
 echo -e "ImportImage: $ImportImageResponse"
@@ -191,7 +191,7 @@ echo -e "[bosh-alicloud-light-stemcell-builder In Progress]\nThe following custo
 echo -e "    Region               ImageId" >> ${success_message}
 
 echo "  image_id:" >> ${stemcell_manifest}
-echo -e "description: $ami_description"
+
 for regionId in ${ami_destinations}
 do
     if [[ $regionId == ${ami_region} ]]; then
@@ -205,7 +205,7 @@ do
             --ImageId $base_image_id \
             --DestinationRegionId $regionId \
             --DestinationImageName $original_stemcell_name \
-            --DestinationDescription \"$ami_description\" \
+            --DestinationDescription "${ami_description}" \
             --Tag.1.Key CopyFrom \
             --Tag.1.Value $base_image_id
             )"
