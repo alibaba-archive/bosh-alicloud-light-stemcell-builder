@@ -28,6 +28,7 @@ stemcell_path=${PWD}/input-stemcell/*.tgz
 original_stemcell_name="$(basename ${stemcell_path})"
 
 echo -e "Checking image ${original_stemcell_name} is ready..."
+sleep 5m
 success=true
 while [[ ${success} = false ]]
 do
@@ -43,8 +44,8 @@ do
         if [[ `echo ${DescribeImagesResponse} | jq -r '.Images.Image[0].ImageId'` = "" ]]; then
             success=false
             echo -e "Cannot find the stemcell ${original_stemcell_name} in the region ${regionId}. Continue..."
+            sleep 10s
             break
-            timeout=$((${timeout}-5))
         else
             success=true
         fi

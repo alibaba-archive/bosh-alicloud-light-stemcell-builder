@@ -2,7 +2,7 @@
 groups:
 - name: all-alicloud
   jobs:
-  - ubuntu-xenial-stemcell-250
+  - ubuntu-xenial-stemcell
 
 shared:
 - &put-stemcells-index
@@ -45,7 +45,7 @@ shared:
     light-stemcell: light-stemcell
     notification: notification
   params:
-    ami_description: {{publish__description}}
+    ami_description: ((publish__description))
     ami_region: ((publish__region))
     ami_access_key: ((publish__access_key))
     ami_secret_key: ((publish__secret_key))
@@ -161,13 +161,13 @@ shared:
       text_file: notification/failed
 
 jobs:
-- name: ubuntu-xenial-stemcell-250
+- name: ubuntu-xenial-stemcell
   serial: true
   plan:
   - aggregate:
 #   get heavy stemcell
     - <<: *get-stemcell
-      resource: ubuntu-xenial-stemcell-250
+      resource: ubuntu-xenial-stemcell
 #   get this builder repo
     - *get-builder-src
     - *get-aliyun-cli
@@ -178,7 +178,7 @@ jobs:
     - <<: *put-environment
       params:
         <<: *put-environment-params
-        env_name: ubuntu-xenial-stemcell-250
+        env_name: ubuntu-xenial-stemcell
         delete_on_failure: true
     - *prepare-director
     - *deploy-director
@@ -191,7 +191,7 @@ jobs:
       - <<: *put-environment
         params:
           <<: *put-environment-params
-          env_name: ubuntu-xenial-stemcell-250
+          env_name: ubuntu-xenial-stemcell
           generate_random_name: true
           action: destroy
   - *ensure-light-stemcell-ready
@@ -214,12 +214,11 @@ resources:
     uri: https://github.com/aliyun/bosh-alicloud-light-stemcell-builder
     branch: dev
 
-- name: ubuntu-xenial-stemcell-250
+- name: ubuntu-xenial-stemcell
   type: bosh-io-stemcell
   source:
     name: bosh-alicloud-kvm-ubuntu-xenial-go_agent
     force_regular: true
-    version_family: "250.63"
 
 - name: aliyun-cli
   type: github-release
@@ -238,10 +237,10 @@ resources:
   type: git
   source:
     uri: https://github.com/cloudfoundry-incubator/bosh-alicloud-cpi-release.git
+#    uri: https://github.com/xiaozhu36/bosh-alicloud-cpi-release.git
     branch: master
-    ignore_paths:
-      - .final_builds/**/*.yml
-      - releases/**/*.yml
+    paths:
+      - ci/**
 
 - name: bosh-cpi-dev-artifacts
   type: s3

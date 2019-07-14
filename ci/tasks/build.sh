@@ -102,45 +102,6 @@ fi
 [[ "${manifest_contents}" =~ ${architecture_regex} ]]
 architecture="${BASH_REMATCH[1]}"
 
-#################### clear last data #####################
-#echo "  image_id:" >> ${stemcell_manifest}
-#for region_tmp in ${ami_destinations}
-#do
-#    echo -e "Describing image in $region_tmp..."
-#    delete_image_id="$( echo $(aliyun ecs DescribeImages \
-#            --access-key-id ${ami_access_key}  \
-#            --access-key-secret ${ami_secret_key} \
-#            --region ${region_tmp} \
-#            --RegionId ${region_tmp} \
-#            --ImageName ${original_stemcell_name} \
-#            --Status Waiting,Creating,Available,UnAvailable,CreateFailed
-#            ) | jq -r '.Images.Image[0].ImageId'
-#            )"
-##    if [[ $delete_image_id == "null" || $delete_image_id == "" ]]; then
-##        continue
-##    fi
-#    echo "    $region_tmp: $delete_image_id" >> ${stemcell_manifest}
-#    echo "$region_tmp:  $delete_image_id" >> ${success_message}
-##    echo -e "Deleting image $delete_image_id in $region_tmp..."
-##    echo "$(aliyun ecs DeleteImage \
-##        --access-key-id ${ami_access_key}  \
-##        --access-key-secret ${ami_secret_key} \
-##        --region ${region_tmp} \
-##        --RegionId ${region_tmp} \
-##        --ImageId $delete_image_id \
-##        --Force true
-##        )"
-#done
-#
-#echo "-------------- manifest\n"
-#echo $(cat ${stemcell_manifest})
-#
-##echo -e "Deleting raw image ${stemcell_image_name}..."
-##aliyun oss rm oss://${ami_bucket_name}/ -r -f --region ${ami_region} --access-key-id ${ami_access_key}  --access-key-secret ${ami_secret_key}
-##echo -e "Deleting bucket ${ami_bucket_name}..."
-##aliyun oss rm oss://${ami_bucket_name} -b -f --region ${ami_region} --access-key-id ${ami_access_key}  --access-key-secret ${ami_secret_key}
-########################################################
-
 echo -e "Uploading raw image ${stemcell_image_name} to ${ami_region} bucket ${ami_bucket_name}..."
 aliyun oss cp ${stemcell_image} oss://${ami_bucket_name}/${stemcell_image_name} -f --access-key-id ${ami_access_key} --access-key-secret ${ami_secret_key} --region ${ami_region}
 
@@ -162,7 +123,7 @@ echo -e "ImportImage: $ImportImageResponse"
 base_image_id="$( echo $ImportImageResponse | jq -r '.ImageId' )"
 
 echo -e "Waiting for image $base_image_id is Available..."
-timeout=600
+timeout=1200
 while [ $timeout -gt 0 ]
 do
     DescribeImagesResponse="$(aliyun ecs DescribeImages \
