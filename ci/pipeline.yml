@@ -51,6 +51,10 @@ shared:
     ami_secret_key: ((publish__secret_key))
     ami_bucket_name: ((publish__bucket))
     ami_destinations: eu-central-1 cn-beijing cn-hangzhou
+  on_success:
+    put: notify
+    params:
+      text_file: notification/success
   on_failure:
     put: notify
     params:
@@ -78,16 +82,16 @@ shared:
       -o pipelines/shared/assets/ops/remove-provider-cert.yml
   input_mapping:
     stemcell: light-stemcell
+  on_failure:
+    put: notify
+    params:
+      text_file: notification/failed
 
 - &deploy-director
   task: deploy-director
   file: pipelines/shared/tasks/deploy-director.yml
   input_mapping:
     stemcell: light-stemcell
-  on_success:
-    put: notify
-    params:
-      text_file: notification/success
   on_failure:
     put: notify
     params:
@@ -109,6 +113,10 @@ shared:
   input_mapping:
     stemcell: light-stemcell
     builder-src: builder-src
+  on_failure:
+    put: notify
+    params:
+      text_file: notification/failed
 - &put-environment
   task: put-environment
   file: bosh-cpi-src/ci/tasks/put-environment.yml
@@ -151,9 +159,9 @@ shared:
     builder-src: builder-src
     aliyun-cli: aliyun-cli
   params:
-    ami_access_key: ((publish__access_key))
-    ami_secret_key: ((publish__secret_key))
-    ami_region: ((publish__region))
+    ami_access_key: ((alicloud_access_key__primary))
+    ami_secret_key: ((alicloud_secret_key__primary))
+    ami_region: ((alicloud_region__primary))
     ami_destinations: eu-central-1 cn-beijing cn-hangzhou
   on_failure:
     put: notify
@@ -173,6 +181,7 @@ jobs:
     - *get-aliyun-cli
   - *create-light-stemcell
 # deploy bosh director and validate the light stemcell
+  - *ensure-light-stemcell-ready
   - do:
     - *get-test-resources
     - <<: *put-environment
@@ -194,7 +203,6 @@ jobs:
           env_name: ubuntu-xenial-stemcell
           generate_random_name: true
           action: destroy
-  - *ensure-light-stemcell-ready
   - get: stemcells-index
   - *publish-stemcell-and-checksum
   - *put-stemcells-index
@@ -237,7 +245,6 @@ resources:
   type: git
   source:
     uri: https://github.com/cloudfoundry-incubator/bosh-alicloud-cpi-release.git
-#    uri: https://github.com/xiaozhu36/bosh-alicloud-cpi-release.git
     branch: master
     paths:
       - ci/**

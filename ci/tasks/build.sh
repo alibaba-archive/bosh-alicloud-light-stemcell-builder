@@ -153,7 +153,7 @@ echo -e "    Region               ImageId" >> ${success_message}
 
 echo "  image_id:" >> ${stemcell_manifest}
 
-for regionId in ${ami_destinations}
+for regionId in ${ami_destinations[*]}
 do
     if [[ $regionId == ${ami_region} ]]; then
         image_id=$base_image_id

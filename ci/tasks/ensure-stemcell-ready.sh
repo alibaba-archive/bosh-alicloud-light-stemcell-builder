@@ -29,25 +29,29 @@ original_stemcell_name="$(basename ${stemcell_path})"
 
 echo -e "Checking image ${original_stemcell_name} is ready..."
 sleep 5m
-success=true
+success=false
 while [[ ${success} = false ]]
 do
-    for regionId in ${ami_destinations}
+    for regionId in ${ami_destinations[*]}
     do
         DescribeImagesResponse="$(aliyun ecs DescribeImages \
                 --access-key-id ${ami_access_key}  \
                 --access-key-secret ${ami_secret_key} \
                 --region ${regionId} \
                 --RegionId ${regionId} \
-                --ImageName ${original_stemcell_name}
+                --ImageName ${original_stemcell_name} \
+                --Status Waiting,Creating,Available
                 )"
-        if [[ `echo ${DescribeImagesResponse} | jq -r '.Images.Image[0].ImageId'` = "" ]]; then
-            success=false
-            echo -e "Cannot find the stemcell ${original_stemcell_name} in the region ${regionId}. Continue..."
-            sleep 10s
-            break
-        else
+        imageId=$(echo ${DescribeImagesResponse} | jq -r '.Images.Image[0].ImageId')
+        if [[ ${imageId} = "m-"* ]]; then
+            echo "Found in the region $regionId. The image id is $imageId."
             success=true
+        else
+            success=false
+            sleep 10
+            echo -e "Cannot find the stemcell ${original_stemcell_name} in the region ${regionId}. Got the image id is $imageId. Continue..."
+            break
         fi
     done
 done
+echo -e "Finished!"
