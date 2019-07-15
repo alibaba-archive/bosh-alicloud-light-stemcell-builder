@@ -50,7 +50,6 @@ shared:
     image_access_key: ((create_stemcell_access_key))
     image_secret_key: ((create_stemcell_secret_key))
     image_bucket_name: ((create_stemcell_bucket))
-#    image_destinations: eu-central-1 cn-beijing cn-hangzhou
   on_success:
     put: notify
     params:
@@ -162,7 +161,6 @@ shared:
     image_access_key: ((alicloud_access_key__primary))
     image_secret_key: ((alicloud_secret_key__primary))
     image_region: ((alicloud_region__primary))
-    image_destinations: eu-central-1
   on_failure:
     put: notify
     params:
@@ -211,7 +209,6 @@ resources:
 - name: stemcells-index
   type: git
   source:
-#    uri: git@github.com:bosh-io/stemcells-cpi-index.git
     uri: git@github.com:cloudfoundry-incubator/stemcells-alicloud-index.git
     branch: master
     private_key: ((stemcells_index__github_key))

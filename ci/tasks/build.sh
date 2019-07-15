@@ -119,8 +119,8 @@ ImportImageResponse="$(aliyun ecs ImportImage \
     --Description "${image_description}"
     )"
 
-echo -e "ImportImage: $ImportImageResponse"
 base_image_id="$( echo $ImportImageResponse | jq -r '.ImageId' )"
+echo -e "ImportImage in the base region $image_region successfully and the base image id is $base_image_id."
 
 echo -e "Waiting for image $base_image_id is Available..."
 timeout=1200
@@ -170,11 +170,11 @@ do
             --Tag.1.Key CopyFrom \
             --Tag.1.Value $base_image_id
             )"
-        echo -e "CopyImage to $regionId: $CopyImageResponse"
         image_id="$(echo $CopyImageResponse | jq -r '.ImageId' )"
+        echo -e "CopyImage to $regionId and target image ID is $image_id."
     fi
     echo "    $regionId: $image_id" >> ${stemcell_manifest}
-    echo "$regionId:  $image_id" >> ${success_message}
+    echo "$image_id" >> ${success_message}
 done
 
 pushd ${extracted_stemcell_dir}
