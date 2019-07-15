@@ -12,7 +12,7 @@ inputs:
 run:
   path: builder-src/ci/tasks/ensure-stemcell-ready.sh
 params:
-  ami_access_key:             ""
-  ami_secret_key:             ""
-  ami_region:                 ""
-  ami_destinations:           ""
+  image_access_key:             ""
+  image_secret_key:             ""
+  image_region:                 ""
+  image_destinations:           ""

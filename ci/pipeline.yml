@@ -45,12 +45,12 @@ shared:
     light-stemcell: light-stemcell
     notification: notification
   params:
-    ami_description: ((publish__description))
-    ami_region: ((publish__region))
-    ami_access_key: ((publish__access_key))
-    ami_secret_key: ((publish__secret_key))
-    ami_bucket_name: ((publish__bucket))
-    ami_destinations: eu-central-1 cn-beijing cn-hangzhou
+    image_description: ((create_stemcell_description))
+    image_region: ((create_stemcell_region))
+    image_access_key: ((create_stemcell_access_key))
+    image_secret_key: ((create_stemcell_secret_key))
+    image_bucket_name: ((create_stemcell_bucket))
+#    image_destinations: eu-central-1 cn-beijing cn-hangzhou
   on_success:
     put: notify
     params:
@@ -159,10 +159,10 @@ shared:
     builder-src: builder-src
     aliyun-cli: aliyun-cli
   params:
-    ami_access_key: ((alicloud_access_key__primary))
-    ami_secret_key: ((alicloud_secret_key__primary))
-    ami_region: ((alicloud_region__primary))
-    ami_destinations: eu-central-1 cn-beijing cn-hangzhou
+    image_access_key: ((alicloud_access_key__primary))
+    image_secret_key: ((alicloud_secret_key__primary))
+    image_region: ((alicloud_region__primary))
+    image_destinations: eu-central-1
   on_failure:
     put: notify
     params:
@@ -212,7 +212,7 @@ resources:
   type: git
   source:
 #    uri: git@github.com:bosh-io/stemcells-cpi-index.git
-    uri: git@github.com:xiaozhu36/stemcells-alicloud-index.git
+    uri: git@github.com:cloudfoundry-incubator/stemcells-alicloud-index.git
     branch: master
     private_key: ((stemcells_index__github_key))
 

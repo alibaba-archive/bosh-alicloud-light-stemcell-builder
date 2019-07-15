@@ -9,24 +9,24 @@ source ${release_dir}/ci/tasks/utils.sh
 
 : ${bosh_io_bucket_name:?}
 : ${bosh_io_bucket_region:?}
-: ${ami_description:="NO DELETING. A bosh stemcell used to deploy bosh."}
-: ${ami_region:?}
-: ${ami_access_key:?}
-: ${ami_secret_key:?}
-: ${ami_bucket_name:?}
+: ${image_description:="NO DELETING. A bosh stemcell used to deploy bosh."}
+: ${image_region:?}
+: ${image_access_key:?}
+: ${image_secret_key:?}
+: ${image_bucket_name:?}
 
 wget -q -O jq https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64
 chmod +x ./jq
 cp jq /usr/bin
 
-saved_ami_destinations="$(echo $(aliyun ecs DescribeRegions \
-    --access-key-id ${ami_access_key} \
-    --access-key-secret ${ami_secret_key} \
-    --region ${ami_region}
+saved_image_destinations="$(echo $(aliyun ecs DescribeRegions \
+    --access-key-id ${image_access_key} \
+    --access-key-secret ${image_secret_key} \
+    --region ${image_region}
     ) | jq -r '.Regions.Region[].RegionId'
     )"
 
-: ${ami_destinations:=$saved_ami_destinations}
+: ${image_destinations:=$saved_image_destinations}
 
 stemcell_path=${PWD}/input-stemcell/*.tgz
 output_path=${PWD}/light-stemcell
@@ -102,21 +102,21 @@ fi
 [[ "${manifest_contents}" =~ ${architecture_regex} ]]
 architecture="${BASH_REMATCH[1]}"
 
-echo -e "Uploading raw image ${stemcell_image_name} to ${ami_region} bucket ${ami_bucket_name}..."
-aliyun oss cp ${stemcell_image} oss://${ami_bucket_name}/${stemcell_image_name} -f --access-key-id ${ami_access_key} --access-key-secret ${ami_secret_key} --region ${ami_region}
+echo -e "Uploading raw image ${stemcell_image_name} to ${image_region} bucket ${image_bucket_name}..."
+aliyun oss cp ${stemcell_image} oss://${image_bucket_name}/${stemcell_image_name} -f --access-key-id ${image_access_key} --access-key-secret ${image_secret_key} --region ${image_region}
 
 ImportImageResponse="$(aliyun ecs ImportImage \
-    --access-key-id ${ami_access_key} \
-    --access-key-secret ${ami_secret_key} \
-    --region ${ami_region} \
+    --access-key-id ${image_access_key} \
+    --access-key-secret ${image_secret_key} \
+    --region ${image_region} \
     --Platform $os_distro \
-    --DiskDeviceMapping.1.OSSBucket ${ami_bucket_name} \
+    --DiskDeviceMapping.1.OSSBucket ${image_bucket_name} \
     --DiskDeviceMapping.1.OSSObject ${stemcell_image_name} \
     --DiskDeviceMapping.1.DiskImageSize $disk_size_gb \
     --DiskDeviceMapping.1.Format $disk_format \
     --Architecture $architecture \
     --ImageName $original_stemcell_name \
-    --Description "${ami_description}"
+    --Description "${image_description}"
     )"
 
 echo -e "ImportImage: $ImportImageResponse"
@@ -127,10 +127,10 @@ timeout=1200
 while [ $timeout -gt 0 ]
 do
     DescribeImagesResponse="$(aliyun ecs DescribeImages \
-            --access-key-id ${ami_access_key}  \
-            --access-key-secret ${ami_secret_key} \
-            --region ${ami_region} \
-            --RegionId ${ami_region} \
+            --access-key-id ${image_access_key}  \
+            --access-key-secret ${image_secret_key} \
+            --region ${image_region} \
+            --RegionId ${image_region} \
             --ImageId $base_image_id \
             --Status Waiting,Creating,Available,UnAvailable,CreateFailed
             )"
@@ -143,9 +143,9 @@ do
 done
 
 # Remove the raw image
-aliyun oss rm oss://${ami_bucket_name}/root.img --region ${ami_region} --access-key-id ${ami_access_key}  --access-key-secret ${ami_secret_key}
+aliyun oss rm oss://${image_bucket_name}/root.img --region ${image_region} --access-key-id ${image_access_key}  --access-key-secret ${image_secret_key}
 
-echo -e "An image $base_image_id has been created in ${ami_region} successfully and then start to copy it to otheres regions:\n${ami_destinations}."
+echo -e "An image $base_image_id has been created in ${image_region} successfully and then start to copy it to otheres regions:\n${image_destinations}."
 
 # Write the success message
 echo -e "[bosh-alicloud-light-stemcell-builder In Progress]\nThe following custom images need to be shared with all of Alibaba Cloud Accounts:" > ${success_message}
@@ -153,20 +153,20 @@ echo -e "    Region               ImageId" >> ${success_message}
 
 echo "  image_id:" >> ${stemcell_manifest}
 
-for regionId in ${ami_destinations[*]}
+for regionId in ${image_destinations[*]}
 do
-    if [[ $regionId == ${ami_region} ]]; then
+    if [[ $regionId == ${image_region} ]]; then
         image_id=$base_image_id
     else
         CopyImageResponse="$(aliyun ecs CopyImage \
-            --access-key-id ${ami_access_key}  \
-            --access-key-secret ${ami_secret_key} \
-            --region ${ami_region} \
-            --RegionId ${ami_region} \
+            --access-key-id ${image_access_key}  \
+            --access-key-secret ${image_secret_key} \
+            --region ${image_region} \
+            --RegionId ${image_region} \
             --ImageId $base_image_id \
             --DestinationRegionId $regionId \
             --DestinationImageName $original_stemcell_name \
-            --DestinationDescription "${ami_description}" \
+            --DestinationDescription "${image_description}" \
             --Tag.1.Key CopyFrom \
             --Tag.1.Value $base_image_id
             )"
